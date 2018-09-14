@@ -44,7 +44,7 @@ def initializeFilter(size, scale = 1.0):
 def initializeWeight(size):
     return np.random.standard_normal(size=size) * 0.01
 
-def nanargmax(arr):
+def maxValIndices(arr):
     idx = np.nanargmax(arr)
     idxs = np.unravel_index(idx, arr.shape)
     return idxs    
@@ -70,4 +70,6 @@ def predict(image, f1, f2, w3, w4, b1, b2, b3, b4, conv_s = 1, pool_f = 2, pool_
     probs = softmax(out) # predict class probabilities with the softmax activation function
     
     return np.argmax(probs), np.max(probs)
-    
+
+def reluActivation(arr):
+    arr[arr<=0] = 0

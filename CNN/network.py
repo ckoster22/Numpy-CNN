@@ -16,41 +16,41 @@ from tqdm import tqdm
 ############### Building The Network ################
 #####################################################
 
-def conv(image, label, params, conv_s, pool_f, pool_s):
+def conv(image, labels, params, stride, pool_f, pool_s):
     
     [f1, f2, w3, w4, b1, b2, b3, b4] = params 
     
     ################################################
     ############## Forward Operation ###############
     ################################################
-    conv1 = convolution(image, f1, b1, conv_s) # convolution operation
-    conv1[conv1<=0] = 0 # pass through ReLU non-linearity
+    conv1 = convolution(image, f1, b1, stride) # convolution operation
+    reluActivation(conv1)
     
-    conv2 = convolution(conv1, f2, b2, conv_s) # second convolution operation
-    conv2[conv2<=0] = 0 # pass through ReLU non-linearity
+    conv2 = convolution(conv1, f2, b2, stride) # second convolution operation
+    reluActivation(conv2)
     
     pooled = maxpool(conv2, pool_f, pool_s) # maxpooling operation
     
-    (nf2, dim2, _) = pooled.shape
-    fc = pooled.reshape((nf2 * dim2 * dim2, 1)) # flatten pooled layer
+    (num_pooled_images, dim2, _) = pooled.shape
+    fc = pooled.reshape((num_pooled_images * dim2 * dim2, 1)) # flatten pooled layer
     
     z = w3.dot(fc) + b3 # first dense layer
-    z[z<=0] = 0 # pass through ReLU non-linearity
+    reluActivation(z)
     
     out = w4.dot(z) + b4 # second dense layer
-     
-    probs = softmax(out) # predict class probabilities with the softmax activation function
+    
+    predictions = softmax(out) # predict class probabilities with the softmax activation function
     
     ################################################
     #################### Loss ######################
     ################################################
     
-    loss = categoricalCrossEntropy(probs, label) # categorical cross-entropy loss
+    loss = categoricalCrossEntropy(predictions, labels) # categorical cross-entropy loss
         
     ################################################
     ############# Backward Operation ###############
     ################################################
-    dout = probs - label # derivative of loss w.r.t. final dense layer output
+    dout = predictions - labels # derivative of loss w.r.t. final dense layer output
     dw4 = dout.dot(z.T) # loss gradient of final dense layer weights
     db4 = np.sum(dout, axis = 1).reshape(b4.shape) # loss gradient of final dense layer biases
     
@@ -65,10 +65,10 @@ def conv(image, label, params, conv_s, pool_f, pool_s):
     dconv2 = maxpoolBackward(dpool, conv2, pool_f, pool_s) # backprop through the max-pooling layer(only neurons with highest activation in window get updated)
     dconv2[conv2<=0] = 0 # backpropagate through ReLU
     
-    dconv1, df2, db2 = convolutionBackward(dconv2, conv1, f2, conv_s) # backpropagate previous gradient through second convolutional layer.
+    dconv1, df2, db2 = convolutionBackward(dconv2, conv1, f2, stride) # backpropagate previous gradient through second convolutional layer.
     dconv1[conv1<=0] = 0 # backpropagate through ReLU
     
-    dimage, df1, db1 = convolutionBackward(dconv1, image, f1, conv_s) # backpropagate previous gradient through first convolutional layer.
+    dimage, df1, db1 = convolutionBackward(dconv1, image, f1, stride) # backpropagate previous gradient through first convolutional layer.
     
     grads = [df1, df2, dw3, dw4, db1, db2, db3, db4] 
     
@@ -78,7 +78,7 @@ def conv(image, label, params, conv_s, pool_f, pool_s):
 ################### Optimization ####################
 #####################################################
 
-def adamGD(batch, num_classes, lr, dim, n_c, beta1, beta2, params, cost):
+def adamGD(batch, num_classes, learning_rate, dim, n_c, beta1, beta2, params, cost):
     '''
     update the parameters through Adam gradient descnet.
     '''
@@ -143,35 +143,35 @@ def adamGD(batch, num_classes, lr, dim, n_c, beta1, beta2, params, cost):
         
     v1 = beta1*v1 + (1-beta1)*df1/batch_size # momentum update
     s1 = beta2*s1 + (1-beta2)*(df1/batch_size)**2 # RMSProp update
-    f1 -= lr * v1/np.sqrt(s1+1e-7) # combine momentum and RMSProp to perform update with Adam
+    f1 -= learning_rate * v1/np.sqrt(s1+1e-7) # combine momentum and RMSProp to perform update with Adam
     
     bv1 = beta1*bv1 + (1-beta1)*db1/batch_size
     bs1 = beta2*bs1 + (1-beta2)*(db1/batch_size)**2
-    b1 -= lr * bv1/np.sqrt(bs1+1e-7)
+    b1 -= learning_rate * bv1/np.sqrt(bs1+1e-7)
    
     v2 = beta1*v2 + (1-beta1)*df2/batch_size
     s2 = beta2*s2 + (1-beta2)*(df2/batch_size)**2
-    f2 -= lr * v2/np.sqrt(s2+1e-7)
+    f2 -= learning_rate * v2/np.sqrt(s2+1e-7)
                        
     bv2 = beta1*bv2 + (1-beta1) * db2/batch_size
     bs2 = beta2*bs2 + (1-beta2)*(db2/batch_size)**2
-    b2 -= lr * bv2/np.sqrt(bs2+1e-7)
+    b2 -= learning_rate * bv2/np.sqrt(bs2+1e-7)
     
     v3 = beta1*v3 + (1-beta1) * dw3/batch_size
     s3 = beta2*s3 + (1-beta2)*(dw3/batch_size)**2
-    w3 -= lr * v3/np.sqrt(s3+1e-7)
+    w3 -= learning_rate * v3/np.sqrt(s3+1e-7)
     
     bv3 = beta1*bv3 + (1-beta1) * db3/batch_size
     bs3 = beta2*bs3 + (1-beta2)*(db3/batch_size)**2
-    b3 -= lr * bv3/np.sqrt(bs3+1e-7)
+    b3 -= learning_rate * bv3/np.sqrt(bs3+1e-7)
     
     v4 = beta1*v4 + (1-beta1) * dw4/batch_size
     s4 = beta2*s4 + (1-beta2)*(dw4/batch_size)**2
-    w4 -= lr * v4 / np.sqrt(s4+1e-7)
+    w4 -= learning_rate * v4 / np.sqrt(s4+1e-7)
     
     bv4 = beta1*bv4 + (1-beta1)*db4/batch_size
     bs4 = beta2*bs4 + (1-beta2)*(db4/batch_size)**2
-    b4 -= lr * bv4 / np.sqrt(bs4+1e-7)
+    b4 -= learning_rate * bv4 / np.sqrt(bs4+1e-7)
     
 
     cost_ = cost_/batch_size
@@ -185,20 +185,20 @@ def adamGD(batch, num_classes, lr, dim, n_c, beta1, beta2, params, cost):
 ##################### Training ######################
 #####################################################
 
-def train(num_classes = 10, lr = 0.01, beta1 = 0.95, beta2 = 0.99, img_dim = 28, img_depth = 1, f = 5, num_filt1 = 8, num_filt2 = 8, batch_size = 32, num_epochs = 2, save_path = 'params.pkl'):
+def train(num_classes = 10, learning_rate = 0.01, beta1 = 0.95, beta2 = 0.99, img_dim = 28, img_depth = 1, f = 5, num_filt1 = 8, num_filt2 = 8, batch_size = 32, num_epochs = 2, save_path = 'params.pkl'):
 
     # training data
-    m =50000
+    m = 50000
     X = extract_data('train-images-idx3-ubyte.gz', m, img_dim)
     y_dash = extract_labels('train-labels-idx1-ubyte.gz', m).reshape(m,1)
-    X-= int(np.mean(X))
-    X/= int(np.std(X))
+    X -= int(np.mean(X))
+    X /= int(np.std(X))
     train_data = np.hstack((X,y_dash))
     
     np.random.shuffle(train_data)
 
     ## Initializing all the parameters
-    f1, f2, w3, w4 = (num_filt1 ,img_depth,f,f), (num_filt2 ,num_filt1,f,f), (128,800), (10, 128)
+    f1, f2, w3, w4 = (num_filt1,img_depth,f,f), (num_filt2,num_filt1,f,f), (64,800), (10, 64)
     f1 = initializeFilter(f1)
     f2 = initializeFilter(f2)
     w3 = initializeWeight(w3)
@@ -213,7 +213,7 @@ def train(num_classes = 10, lr = 0.01, beta1 = 0.95, beta2 = 0.99, img_dim = 28,
 
     cost = []
 
-    print("LR:"+str(lr)+", Batch Size:"+str(batch_size))
+    print("learning_rate:"+str(learning_rate)+", Batch Size:"+str(batch_size))
 
     for epoch in range(num_epochs):
         np.random.shuffle(train_data)
@@ -221,7 +221,7 @@ def train(num_classes = 10, lr = 0.01, beta1 = 0.95, beta2 = 0.99, img_dim = 28,
 
         t = tqdm(batches)
         for x,batch in enumerate(t):
-            params, cost = adamGD(batch, num_classes, lr, img_dim, img_depth, beta1, beta2, params, cost)
+            params, cost = adamGD(batch, num_classes, learning_rate, img_dim, img_depth, beta1, beta2, params, cost)
             t.set_description("Cost: %.2f" % (cost[-1]))
             
     to_save = [params, cost]

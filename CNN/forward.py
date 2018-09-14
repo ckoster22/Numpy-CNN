@@ -8,65 +8,66 @@ Date: June 12th, 2018
 import numpy as np
 
 
-#####################################################
-################ Forward Operations #################
-#####################################################
-
-
-def convolution(image, filt, bias, s=1):
+def convolution(image, filt, bias, stride=1):
     '''
-    Confolves `filt` over `image` using stride `s`
+    Confolves `filt` over `image` using stride `stride`
     '''
-    (n_f, n_c_f, f, _) = filt.shape # filter dimensions
-    n_c, in_dim, _ = image.shape # image dimensions
-    
-    out_dim = int((in_dim - f)/s)+1 # calculate output dimensions
-    
-    assert n_c == n_c_f, "Dimensions of filter must match dimensions of input image"
-    
-    out = np.zeros((n_f,out_dim,out_dim))
-    
-    # convolve the filter over every part of the image, adding the bias at each step. 
-    for curr_f in range(n_f):
+    (num_filters, num_channels_filter, kernel_size, _) = filt.shape
+    num_channels, in_dim, _ = image.shape
+
+    # calculate output dimensions
+    out_dim = int((in_dim - kernel_size) / stride) + 1
+
+    assert num_channels == num_channels_filter, "Number of filter channels must match number of input image channels"
+
+    out = np.zeros((num_filters, out_dim, out_dim))
+
+    # convolve the filter over every part of the image, adding the bias at each step.
+    for filter_index in range(num_filters):
         curr_y = out_y = 0
-        while curr_y + f <= in_dim:
+        curr_filter = filt[filter_index]
+        while curr_y + kernel_size <= in_dim:
             curr_x = out_x = 0
-            while curr_x + f <= in_dim:
-                out[curr_f, out_y, out_x] = np.sum(filt[curr_f] * image[:,curr_y:curr_y+f, curr_x:curr_x+f]) + bias[curr_f]
-                curr_x += s
+            while curr_x + kernel_size <= in_dim:
+                out[filter_index, out_y, out_x] = np.sum(
+                    curr_filter * image[:, curr_y:curr_y+kernel_size, curr_x:curr_x+kernel_size]) + bias[filter_index]
+                curr_x += stride
                 out_x += 1
-            curr_y += s
+            curr_y += stride
             out_y += 1
-        
+
     return out
 
-def maxpool(image, f=2, s=2):
+
+def maxpool(image, kernel_size=2, stride=2):
     '''
-    Downsample `image` using kernel size `f` and stride `s`
+    Downsample `image` using kernel size `kernel_size` and stride `stride`
     '''
-    n_c, h_prev, w_prev = image.shape
-    
-    h = int((h_prev - f)/s)+1
-    w = int((w_prev - f)/s)+1
-    
-    downsampled = np.zeros((n_c, h, w))
-    for i in range(n_c):
+    num_channels, image_height, image_width = image.shape
+
+    out_height = int((image_height - kernel_size) / stride) + 1
+    out_width = int((image_width - kernel_size) / stride) + 1
+
+    downsampled = np.zeros((num_channels, out_height, out_width))
+    for channel_index in range(num_channels):
         # slide maxpool window over each part of the image and assign the max value at each step to the output
         curr_y = out_y = 0
-        while curr_y + f <= h_prev:
+        while curr_y + kernel_size <= image_height:
             curr_x = out_x = 0
-            while curr_x + f <= w_prev:
-                downsampled[i, out_y, out_x] = np.max(image[i, curr_y:curr_y+f, curr_x:curr_x+f])
-                curr_x += s
+            while curr_x + kernel_size <= image_width:
+                downsampled[channel_index, out_y, out_x] = np.max(
+                    image[channel_index, curr_y:curr_y+kernel_size, curr_x:curr_x+kernel_size])
+                curr_x += stride
                 out_x += 1
-            curr_y += s
+            curr_y += stride
             out_y += 1
     return downsampled
+
 
 def softmax(X):
     out = np.exp(X)
     return out/np.sum(out)
 
+
 def categoricalCrossEntropy(probs, label):
     return -np.sum(label * np.log(probs))
-
