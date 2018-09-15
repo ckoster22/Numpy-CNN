@@ -185,7 +185,7 @@ def adamGD(batch, num_classes, learning_rate, dim, n_c, beta1, beta2, params, co
 ##################### Training ######################
 #####################################################
 
-def train(num_classes = 10, learning_rate = 0.01, beta1 = 0.95, beta2 = 0.99, img_dim = 28, img_depth = 1, f = 5, num_filt1 = 8, num_filt2 = 8, batch_size = 32, num_epochs = 2, save_path = 'params.pkl'):
+def train(num_classes = 10, learning_rate = 0.01, beta1 = 0.95, beta2 = 0.99, img_dim = 28, img_depth = 1, f = 5, num_filt1 = 8, num_filt2 = 8, batch_size = 32, num_epochs = 1, save_path = 'params.pkl'):
 
     # training data
     m = 50000

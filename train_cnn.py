@@ -34,12 +34,12 @@ if __name__ == '__main__':
     plt.show()
 
     # Get test data
-    m =10000
+    m = 10000
     X = extract_data('t10k-images-idx3-ubyte.gz', m, 28)
     y_dash = extract_labels('t10k-labels-idx1-ubyte.gz', m).reshape(m,1)
     # Normalize the data
-    X-= int(np.mean(X)) # subtract mean
-    X/= int(np.std(X)) # divide by standard deviation
+    X -= int(np.mean(X)) # subtract mean
+    X /= int(np.std(X)) # divide by standard deviation
     test_data = np.hstack((X,y_dash))
     
     X = test_data[:,0:-1]
